@@ -1,45 +1,41 @@
 ; Модуль загрузки ядра с диска в озу
 ; За основу этого взят пример из:
 ;   https://gist.github.com/lpsantil/1874befe382ab43cbd5d#file-boot-asm-L8
+;   ^^^^^^^^^^^^~ НЕ ИСПОЛЬЗУЙТЕ ЭТО !!!
 ; Изменения:
 ;   13 Nov, 19:48 :: Файл создан.
 ;   13 Nov, 20:29 :: Добавлена минимальная документация и система загрузки ядра с диска в озу
+;   13 Nov, 20:47 :: Исправлены фундаментальные ошибки в загрузке ядра с диска в озу
 
 _KRNL_BOOTDRV db 0x0
 
 ; Определяем `krnl_load`
 ; Это функиця загрузчки ядра с вызовом `krnl_ramload`
 krnl_load:
-    mov bx, _KRNL_ADDR
-    mov dh, _KRNL_SECTORS
     mov dl, [_KRNL_BOOTDRV]
     call krnl_ramload
 
 ; Определяем `krnl_ramload`
 ; Это функция загрузки ядра со второго сектора этого диска
 krnl_ramload:
-    ; Сохраняем регистры из стека
-    pusha
+    mov dh, 0x00                ; Головка
+    mov cl, 0x02                ; Сектор с когорого нужно читать
+    mov ch, 0x00                ; Цилиндр
+    mov al, _KRNL_SECTORS       ; Передаём в al число секторов которые надо загрузить
 
-    push dx
+    ; Подготовка ES:BX на физический адрес _KRNL_ADDR
+    mov ax, (_KRNL_ADDR >> 4)   ; Выравниваем по 4 байта сегменты физического адреса
+    mov es, ax                  ; Передаём в регистр es значение из ax
+    mov bx, _KRNL_ADDR & 0x0F   ; Смещаем наш физиаческий адрес
 
+    ; Вызываем чтение
+    pushad
     ; Сисколл биоса для чтения с диска
     mov ah, 0x02
-    mov al, dh          ; Передаём в al число секторов которые надо загрузить
-    mov ah, 0x00        ; Цилиндр
-    mov dh, 0x00        ; Головка
-    mov cl, 0x02        ; Сектор с когорого нужно читать
-
     ; Вызываем прерывание BIOS
     int 0x13
-
+    popad
     jc krnl_ramload_error
-
-    pop dx
-    cmp dh, al
-    jne krnl_ramload_error
-
-    popa
     ret
 
 ; Определяем `krnl_ramload_error`
