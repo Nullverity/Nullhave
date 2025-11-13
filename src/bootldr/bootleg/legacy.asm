@@ -4,6 +4,8 @@
 ;   12 Nov, 22:23 :: Добавлен базовый код загрузчика который выводит "Welcome to Nullhave bootlegacy loader!"
 ;   12 Nov, 22:31 :: Написана минимальная документация кода загрузчика на русском языке.
 ;   13 Nov, 16:24 :: Изменён путь до tty модуля с `includes/tty.asm` на `includes/m_tty.asm`
+;   13 Nov, 19:10 :: Добавлены 2 модуля `i386/gdt.asm` и `protm.asm`
+;   13 Nov, 19:14 :: Символ `halt` и прыжок `halt` через call удалены и заменены на `jmp $`
 
 ; Говорим компилятору что код будет запускаться с этого адреса
 org 0x7C00
@@ -23,17 +25,16 @@ start:
     ; Вызываем вывод сообщения на экран машины.
     mov si, welcoming
     call m_tty_print
+
+    call m_sw_32
     
     ; Прыгаем в бесконечность
-    jmp halt
-
-; Определяем бесконечность функцией `halt`
-halt:
-    cli
-    jmp halt
+    jmp $
 
 ; Используем дополнительные asm файлы
-%include "includes/m_tty.asm"     ; Инклюд с функцией для вывода текста на экран машины.
+%include "includes/m_tty.asm"       ; Для вывода текста на экран машины.
+%include "i386/gdt.asm"             ; Для конфигурации таблицы дескрипторов
+%include "i386/protm.asm"           ; Для входа в 32-битный защищённый режим.
 
 ; Приветственное сообщение
 welcoming db "Welcome to Nullhave bootlegacy loader!", 0x0
