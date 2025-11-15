@@ -53,6 +53,9 @@ dkms.conf
 
 .vscode/
 .make_cache/
+build/
+
+*.log
 
 # debug information files
 *.dwo

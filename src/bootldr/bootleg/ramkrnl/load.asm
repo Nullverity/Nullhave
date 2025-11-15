@@ -1,41 +1,47 @@
 ; Модуль загрузки ядра с диска в озу
 ; За основу этого взят пример из:
-;   https://gist.github.com/lpsantil/1874befe382ab43cbd5d#file-boot-asm-L8
-;   ^^^^^^^^^^^^~ НЕ ИСПОЛЬЗУЙТЕ ЭТО !!!
+;   https://en.wikipedia.org/wiki/INT_13H <- Здесь написано всё в подробностях
 ; Изменения:
 ;   13 Nov, 19:48 :: Файл создан.
 ;   13 Nov, 20:29 :: Добавлена минимальная документация и система загрузки ядра с диска в озу
 ;   13 Nov, 20:47 :: Исправлены фундаментальные ошибки в загрузке ядра с диска в озу
+;   15 Nov, 14:20 :: Исправлена ошибка krnl_ramload_error при загрузке ядра.
+;   15 Nov, 21:41 :: Исправлена неверная загрузка ядра в память 
+;   15 Nov, 21:45 :: Изменена минимальная документация
 
-_KRNL_BOOTDRV db 0x0
+[bits 16]
 
 ; Определяем `krnl_load`
-; Это функиця загрузчки ядра с вызовом `krnl_ramload`
-krnl_load:
-    mov dl, [_KRNL_BOOTDRV]
-    call krnl_ramload
-
-; Определяем `krnl_ramload`
 ; Это функция загрузки ядра со второго сектора этого диска
-krnl_ramload:
-    mov dh, 0x00                ; Головка
-    mov cl, 0x02                ; Сектор с когорого нужно читать
-    mov ch, 0x00                ; Цилиндр
-    mov al, _KRNL_SECTORS       ; Передаём в al число секторов которые надо загрузить
-
-    ; Подготовка ES:BX на физический адрес _KRNL_ADDR
-    mov ax, (_KRNL_ADDR >> 4)   ; Выравниваем по 4 байта сегменты физического адреса
-    mov es, ax                  ; Передаём в регистр es значение из ax
-    mov bx, _KRNL_ADDR & 0x0F   ; Смещаем наш физиаческий адрес
-
-    ; Вызываем чтение
-    pushad
+krnl_load:
+    pusha
+    push dx
+    
     ; Сисколл биоса для чтения с диска
     mov ah, 0x02
+    mov al, _KRNL_SECTORS       ; Передаём в al число секторов которые надо загрузить
+    mov ch, 0x00                ; Цилиндр
+    mov dh, 0x00                ; Головка
+    mov cl, 0x02                ; Сектор с когорого нужно читать
+    mov dl, [_KRNL_BOOTDRV]     ; Передаём номер диска
+    ; Настраиваем ES:BX
+    ; В данном случае мы будем загружать ядро в 0x100000, что является
+    ;   0x1000:0x1000
+    ;   ^ ES ~ ^ BX ~
+    mov bx, 0x1000              
+    mov es, bx
+    mov bx, 0x0000
+    
+    ; Вызываем чтение
     ; Вызываем прерывание BIOS
     int 0x13
-    popad
     jc krnl_ramload_error
+    
+    cmp al, _KRNL_SECTORS
+    jne krnl_ramload_error
+    
+    pop dx
+    popa
     ret
 
 ; Определяем `krnl_ramload_error`
@@ -45,4 +51,6 @@ krnl_ramload_error:
     call m_tty_print
     jmp $
 
-disk_load_eror_message db 0x0A, 0x0D, "Kernel load error occured.", 0x0
+loading_disk_msg db 0x0A, 0x0D, "Reading kernel from disk...", 0x0
+loaded_ok_msg db 0x0A, 0x0D, "Kernel read OK.", 0x0
+disk_load_eror_message db 0x0A, 0x0D, "An error occurred while reading the disk.", 0x0

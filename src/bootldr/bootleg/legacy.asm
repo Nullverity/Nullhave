@@ -25,18 +25,25 @@ jmp start
 
 ; Определяем `start`
 start:
+    cli
     ; Устанавливаем сегментные регистры
     xor ax, ax
     mov ds, ax
     mov es, ax
+    mov ss, ax
+    mov sp, 0x7C00
+
+    sti
+
+    ; Сохраняем номер загрузочного устройства
     
     ; Вызываем вывод сообщения на экран машины.
     mov si, welcoming
     call m_tty_print
-
+    
     ; Пробуем загрузить ядро из диска в озу
     call krnl_load
-
+    
     ; Переход в 32-битный защищённый режим, 
     call m_sw_32
     
@@ -49,6 +56,8 @@ start:
 %include "cpu/protm.asm"            ; Для входа в 32-битный защищённый режим.
 %include "cpu/gdt.asm"              ; Для конфигурации таблицы дескрипторов.
 
+; Диск
+_KRNL_BOOTDRV db 0x80
 ; Приветственное сообщение
 welcoming db "Welcome to Nullhave bootlegacy loader!", 0x0
 
